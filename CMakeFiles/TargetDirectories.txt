@@ -1,0 +1,3 @@
+/home/rasland/homework/CMakeFiles/rebuild_cache.dir
+/home/rasland/homework/CMakeFiles/display.dir
+/home/rasland/homework/CMakeFiles/edit_cache.dir

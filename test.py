@@ -2,22 +2,36 @@
 # import pygame module in this program 
 import cv2
 import numpy as np
-import socket
+import socket,os,struct, glob, sys
 
-#pygame.init() 
-    
-    
-#display_surface = pygame.display.set_mode([1280,720])
-
-#pygame.display.set_caption('Image') 
             
-imgs = []
-#def recive_imgs():
-TCP_IP = 'localhost'
-TCP_PORT = 5001
-
-
 img = cv2.imread('img.jpg')
+def receive_data():
+    img = []
+    recv_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    try:
+        os.remove("/tmp/tmp")
+    except OSError:
+        pass
+    recv_socket.bind("/tmp/tmp")
+    recv_socket.listen(10)
+    conn, addr = recv_socket.accept()
+    size = conn.recv(4)
+    size = struct.unpack('i', size)[0]
+    while size > 0:
+        data = conn.recv(4)
+        try:
+            p = struct.unpack('f', data)[0]
+        except struct.error:
+            p = 0
+        size -= 1
+        img.append(p)
+
+    img = np.array(img)
+    cv2.imwrite('color_img.jpg', img)
+    cv2.imshow("img", img)
+    #flip_imgs_and_show(img)
+
 
 def flip_imgs_and_show(img):
     cv2.imshow("img", img)
@@ -38,31 +52,10 @@ def flip_imgs_and_show(img):
     img_to_disblay = cv2.vconcat(up, down)
     cv2.imshow("img", img_to_disblay)
 
-def recvall(sock, count):
-    buf = b''
-    while count:
-        newbuf = sock.recv(count)
-        if not newbuf: return None
-        buf += newbuf
-        count -= len(newbuf)
-    return buf
 
-def recive_binded_socket():
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.bind((TCP_IP, TCP_PORT))
-    s.listen(True)
-    conn, addr = s.accept()
-    length = recvall(conn, 16)
-    stringData = recvall(conn, int(length))
-    data = numpy.fromstring(stringData, dtype='uint8')
-    s.close()
-
-    decimg=cv2.imdecode(data,1)
-    return decimg
-
-
-
+receive_data()
 while 1:
-    flip_imgs_and_show(recive_binded_socket())
+    receive_data()
+
 
 

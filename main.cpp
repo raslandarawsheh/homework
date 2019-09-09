@@ -4,6 +4,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/un.h>
 #include <netinet/in.h>
 #include <netdb.h>
 
@@ -14,31 +15,40 @@
 
 using namespace cv;
 using namespace std;
+
+int send_data(Mat img)
+{
+	//img = (img.reshape(0,1));
+	int  imgSize = img.total()*img.elemSize();
+	printf("size = %d\n", imgSize);
+	int send_sock;
+	struct sockaddr_un client;
+	/* Create socket on which to send. */
+	send_sock = socket(AF_UNIX, SOCK_STREAM, 0);
+	if (send_sock < 0) {
+		perror("opening unix socket");
+		exit(1);
+	}
+
+	/* Construct name of socket to send to. */
+	client.sun_family = AF_UNIX;
+
+        strcpy(client.sun_path, "/tmp/tmp");
+
+	if (connect(send_sock, (struct sockaddr *)&client,
+		sizeof(struct sockaddr_un)) < 0) {
+		close(send_sock);
+		perror("connecting stream socket");
+   		exit(1);
+	}
+	write(send_sock, &imgSize, sizeof imgSize);
+	write(send_sock, img.data, imgSize);
+	close(send_sock);
+	unlink("/tmp/tmp");	
+}
+
 int main( int argc, char** argv )
 {
-	int sockfd, portno, n;
-        struct sockaddr_in serv_addr;
-        struct hostent *server;
-	portno = 5001;
-	sockfd = socket(AF_INET, SOCK_STREAM, 0);
-	if (sockfd < 0) 
-		cout << "err in opening socket";
-	
-        server = gethostbyname("localhost");
-	if (server == NULL) {
-		cout << "ERROR, no such host\n";
-	        exit(-1);
-	}
-	bzero((char *) &serv_addr, sizeof(serv_addr));
-	serv_addr.sin_family = AF_INET;
-	bcopy((char *)server->h_addr, 
-	      (char *)&serv_addr.sin_addr.s_addr,
-	              server->h_length);
-		      serv_addr.sin_port = htons(portno);
-       if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) 
-		cout<< "ERROR connecting";
-
-
 	String imageName( "img.jpg" ); // by default
 	Mat image;
 	image = imread( samples::findFile( imageName ), IMREAD_COLOR ); // Read the file
@@ -51,10 +61,7 @@ int main( int argc, char** argv )
 		cout <<  "Could not open or find the image" << std::endl ;
 		return -1;
 	}
-       	n = write(sockfd,image.data,image.total()*image.channels());
-	if (n < 0) 
-		cout << "ERROR writing to socket";
-	close(sockfd);          
+	send_data(image);
 	namedWindow( "Display window", WINDOW_AUTOSIZE ); // Create a window for display.
 	imshow( "Display window", image );                // Show our image inside it.
 	waitKey(0); // Wait for a keystroke in the window
